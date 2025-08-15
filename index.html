@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>WMTS Demo</title>
+    <link rel="stylesheet" href="node_modules/ol/ol.css" />
+    <style>
+      .map {
+        width: 100%;
+        height: 800px;
+        position: relative;
+      }
+
+      .date-control {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        background: rgba(255, 255, 255, 0.9);
+        padding: 10px;
+        border-radius: 5px;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+        z-index: 1000;
+      }
+
+      #date-dropdown {
+        padding: 5px;
+        border: 1px solid #ccc;
+        border-radius: 3px;
+        font-size: 14px;
+      }
+
+      #date-info {
+        margin-left: 10px;
+        font-size: 12px;
+        color: #666;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="map" class="map">
+      <div class="date-control">
+        <label>
+          Date:
+          <select id="date-dropdown">
+            <option value="">Select a date...</option>
+          </select>
+        </label>
+        <span id="date-info"></span>
+      </div>
+    </div>
+
+    <script type="module" src="main.js"></script>
+  </body>
+</html>
