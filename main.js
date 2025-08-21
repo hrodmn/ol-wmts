@@ -9,39 +9,65 @@ import WMTSCapabilities from "ol/format/WMTSCapabilities.js";
 
 const parser = new WMTSCapabilities();
 
-// Available time values from the WMTS capabilities
-const availableTimes = [
-  "2024-01-01",
-  "2024-01-17",
-  "2024-02-02",
-  "2024-02-18",
-  "2024-03-05",
-  "2024-03-21",
-  "2024-04-06",
-  "2024-04-22",
-  "2024-05-08",
-  "2024-05-24",
-  "2024-06-09",
-  "2024-06-25",
-  "2024-07-11",
-  "2024-07-27",
-  "2024-08-12",
-  "2024-08-28",
-  "2024-09-13",
-  "2024-09-29",
-  "2024-10-15",
-  "2024-10-31",
-  "2024-11-16",
-  "2024-12-02",
-  "2024-12-18",
-  "2025-01-01",
-  "2025-01-17",
-  "2025-02-02",
-  "2025-02-18",
-  "2025-03-06",
-  "2025-03-22",
-  "2025-04-07",
-];
+function parseDurationToDays(duration) {
+  const match = duration.match(/P(\d+)D/);
+  return match ? parseInt(match[1], 10) : 1;
+}
+
+function generateDatesFromInterval(intervalString) {
+  const parts = intervalString.split("/");
+  if (parts.length !== 3) {
+    return [intervalString];
+  }
+
+  const [startDate, endDate, duration] = parts;
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+  const intervalDays = parseDurationToDays(duration);
+
+  const dates = [];
+  const current = new Date(start);
+
+  while (current <= end) {
+    dates.push(current.toISOString().split("T")[0]);
+    current.setDate(current.getDate() + intervalDays);
+  }
+
+  return dates;
+}
+
+function parseTimeDimensionFromCapabilities(capabilities, layerName) {
+  const contents = capabilities.Contents;
+  if (!contents || !contents.Layer) {
+    return [];
+  }
+
+  const layer = contents.Layer.find((l) => l.Identifier === layerName);
+  if (!layer || !layer.Dimension) {
+    return [];
+  }
+
+  const timeDimension = layer.Dimension.find((d) => d.Identifier === "Time");
+  if (!timeDimension || !timeDimension.Value) {
+    return [];
+  }
+
+  const timeValues = Array.isArray(timeDimension.Value)
+    ? timeDimension.Value
+    : [timeDimension.Value];
+
+  const allDates = [];
+  timeValues.forEach((value) => {
+    const trimmedValue = value.trim();
+    if (trimmedValue.includes("/")) {
+      allDates.push(...generateDatesFromInterval(trimmedValue));
+    } else {
+      allDates.push(trimmedValue);
+    }
+  });
+
+  return [...new Set(allDates)].sort();
+}
 
 async function initializeMap() {
   const response = await fetch(
@@ -49,13 +75,20 @@ async function initializeMap() {
   );
   const text = await response.text();
   const wmsCapabilities = parser.read(text);
+  const layerName = "MODIS_Terra_L3_NDVI_16Day";
   const options = optionsFromCapabilities(wmsCapabilities, {
-    layer: "MODIS_Terra_L3_NDVI_16Day",
+    layer: layerName,
   });
   console.log("urls:", options.urls);
   options.urls = [
     "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/MODIS_Terra_L3_NDVI_16Day/default/{Time}/{TileMatrixSet}/{TileMatrix}/{TileRow}/{TileCol}.png",
   ];
+
+  const availableTimes = parseTimeDimensionFromCapabilities(
+    wmsCapabilities,
+    layerName,
+  );
+  console.log("Available times from capabilities:", availableTimes);
 
   const wmtsSource = new WMTS(options);
 
@@ -76,14 +109,12 @@ async function initializeMap() {
     }),
   });
 
-  function populateDateDropdown() {
+  function populateDateDropdown(times) {
     const dropdown = document.getElementById("date-dropdown");
 
     dropdown.innerHTML = '<option value="">Select a date...</option>';
 
-    const sortedDates = [...availableTimes].sort(
-      (a, b) => new Date(b) - new Date(a),
-    );
+    const sortedDates = [...times].sort((a, b) => new Date(b) - new Date(a));
 
     sortedDates.forEach((dateValue) => {
       const option = document.createElement("option");
@@ -93,7 +124,7 @@ async function initializeMap() {
     });
   }
 
-  populateDateDropdown();
+  populateDateDropdown(availableTimes);
 
   const dropdown = document.getElementById("date-dropdown");
   const updateSourceDimension = function () {
