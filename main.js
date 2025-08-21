@@ -43,60 +43,64 @@ const availableTimes = [
   "2025-04-07",
 ];
 
-const response = await fetch(
-  "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/wmts.cgi?service=wmts&request=GetCapabilities",
-);
-const text = await response.text();
-const wmsCapabilities = parser.read(text);
-const options = optionsFromCapabilities(wmsCapabilities, {
-  layer: "MODIS_Terra_L3_NDVI_16Day",
-});
-console.log("urls:", options.urls);
-options.urls = [
-  "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/MODIS_Terra_L3_NDVI_16Day/default/{Time}/{TileMatrixSet}/{TileMatrix}/{TileRow}/{TileCol}.png",
-];
-
-const wmtsSource = new WMTS(options);
-
-new Map({
-  layers: [
-    new TileLayer({
-      source: new OSM(),
-    }),
-    new TileLayer({
-      opacity: 0.7,
-      source: wmtsSource,
-    }),
-  ],
-  target: "map",
-  view: new View({
-    center: [0, 0],
-    zoom: 0,
-  }),
-});
-
-function populateDateDropdown() {
-  const dropdown = document.getElementById("date-dropdown");
-
-  dropdown.innerHTML = '<option value="">Select a date...</option>';
-
-  const sortedDates = [...availableTimes].sort(
-    (a, b) => new Date(b) - new Date(a),
+async function initializeMap() {
+  const response = await fetch(
+    "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/wmts.cgi?service=wmts&request=GetCapabilities",
   );
-
-  sortedDates.forEach((dateValue) => {
-    const option = document.createElement("option");
-    option.value = dateValue;
-    option.textContent = dateValue;
-    dropdown.appendChild(option);
+  const text = await response.text();
+  const wmsCapabilities = parser.read(text);
+  const options = optionsFromCapabilities(wmsCapabilities, {
+    layer: "MODIS_Terra_L3_NDVI_16Day",
   });
+  console.log("urls:", options.urls);
+  options.urls = [
+    "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/MODIS_Terra_L3_NDVI_16Day/default/{Time}/{TileMatrixSet}/{TileMatrix}/{TileRow}/{TileCol}.png",
+  ];
+
+  const wmtsSource = new WMTS(options);
+
+  new Map({
+    layers: [
+      new TileLayer({
+        source: new OSM(),
+      }),
+      new TileLayer({
+        opacity: 0.7,
+        source: wmtsSource,
+      }),
+    ],
+    target: "map",
+    view: new View({
+      center: [0, 0],
+      zoom: 0,
+    }),
+  });
+
+  function populateDateDropdown() {
+    const dropdown = document.getElementById("date-dropdown");
+
+    dropdown.innerHTML = '<option value="">Select a date...</option>';
+
+    const sortedDates = [...availableTimes].sort(
+      (a, b) => new Date(b) - new Date(a),
+    );
+
+    sortedDates.forEach((dateValue) => {
+      const option = document.createElement("option");
+      option.value = dateValue;
+      option.textContent = dateValue;
+      dropdown.appendChild(option);
+    });
+  }
+
+  populateDateDropdown();
+
+  const dropdown = document.getElementById("date-dropdown");
+  const updateSourceDimension = function () {
+    wmtsSource.updateDimensions({ Time: dropdown.value });
+  };
+  dropdown.addEventListener("input", updateSourceDimension);
+  updateSourceDimension();
 }
 
-populateDateDropdown();
-
-const dropdown = document.getElementById("date-dropdown");
-const updateSourceDimension = function () {
-  wmtsSource.updateDimensions({ Time: dropdown.value });
-};
-dropdown.addEventListener("input", updateSourceDimension);
-updateSourceDimension();
+initializeMap();
